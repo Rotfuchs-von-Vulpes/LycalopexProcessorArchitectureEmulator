@@ -36,8 +36,6 @@ function codeGenerator(instructions) {
     }
   });
 
-  console.log(instructions);
-
   for (let i in instructions) {
     let instruction = instructions[i];
 
@@ -104,7 +102,6 @@ function codeGenerator(instructions) {
       instruction[0] = instruction[0].split('');
       instruction[0].shift();
       instruction[0] = instruction[0].join('');
-      console.log(instruction[0]);
 
       switch (symbols[instruction[0]]) {
         case symbols.INPUT:
@@ -212,7 +209,6 @@ export default function assembler(code) {
   let output = codeGenerator(instructions);
 
   el.innerHTML = output;
-  console.log(output);
 
   return output;
 }
