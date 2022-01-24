@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+  <html>
+  <head>
+    <meta charset="utf8"/>
+    <title>Microcontroler</title>
+    <link rel="icon" href="./favicon.ico"/>
+    <script src="./node_modules/codemirror/lib/codemirror.js"></script>
+    <link rel="stylesheet" href="./node_modules/codemirror/lib/codemirror.css"/>
+    <script src="./node_modules/codemirror/addon/mode/simple.js"></script>
+    <style>
+      body {
+        background-color: rgb(10, 15, 20);
+        color: white;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="error"></div>
+    <button id="run">Run</button>
+    <button id="reset">Reset</button>
+    <button id="clear">Clear</button>
+    <div id="show"></div>
+    <button id="compile">Compile</button>
+    <div id="machineCode"></div>
+    <script src="codemirrorEditor.js"></script>
+    <script src="main.js" type="module"></script>
+  </body>
+</html>
