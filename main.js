@@ -1,6 +1,6 @@
 import logic from './logic.js';
 import compiler from './compiler.js';
-import { displayAnError } from './error.js';
+import displayAnError from './error.js';
 import { tokenize, reset } from './interpreter.js';
 
 const elRun = document.getElementById('run');

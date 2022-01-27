@@ -1,7 +1,120 @@
-import logic from './logic.js';
-import displayAnError from './error.js';
+function toNumber(array) {
+  let num = 0;
+  
+  for (let i in array) {
+    num += +array[i] * 2 ** (array.length - i - 1)
+  }
+  
+  return num;
+}
 
-const el = document.getElementById('machineCode');
+function toBinary(num) {
+  let array = [];
+  
+  while (num) {
+    array.unshift(!!(num % 2));
+    num -= Math.ceil(num / 2);
+  }
+  
+  return array;
+}
+
+function show(line) {
+  return line.map(toNumber);
+}
+
+function iterate(cell) {
+  let test = toBinary(toNumber(cell) + 1);
+  
+  while (test.length < cell.length) {
+    test.unshift(false);
+  }
+  
+  return test;
+}
+
+function unterate(cell) {
+  let test = toBinary(toNumber(cell) - 1);
+  
+  while (test.length < cell.length) {
+    test.unshift(false);
+  }
+  
+  return test;
+}
+
+function extender(line, n) {
+  while (line.length < n) {
+    line.unshift(false);
+  }
+  
+  return line;
+}
+
+function hexToBinary(hex) {
+  let num = hex.toLocaleLowerCase().split('').splice(2, Infinity);
+  let bin = [];
+
+  for (let char of num) {
+    if (char >= 'a' && char <= 'f') {
+      char = char.charCodeAt() - 87;
+    } else if (!(char >= '0' && char <= '9')) {
+      return console.error(`${char} é um caractere inválido.`)
+    }
+
+    extender(toBinary(+char), 4).forEach(algarism => {
+      bin.push(algarism);
+    });
+  }
+
+  return bin;
+}
+
+function truthTable(f, n) {
+  let test = new Array(n).fill(false);
+  
+  for (let i = 0; i < 2 ** n; i++) {
+    console.log(`${test.map(c => +c)} ${+f(test)}`);
+    test = iterate(test);
+  }
+}
+
+function FULL_ADDER(a, b, c) {
+  return [a && b || c && (a || b), a ^ b ^ c];
+}
+
+function BITS4_FULL_ADDER(A, B, c) {
+  let c0 = FULL_ADDER(A[3], B[3], c);
+  let c1 = FULL_ADDER(A[2], B[2], c0[0]);
+  let c2 = FULL_ADDER(A[1], B[1], c1[0]);
+  let c3 = FULL_ADDER(A[0], B[0], c2[0]);
+
+  return [c3[0], c3[1], c2[1], c1[1], c0[1]];
+}
+
+function SUBBER(A, c) {
+  if (c) {
+    return [!(A[0] ^ !(A[1] || A[2])), !(A[1] ^ A[2]), !A[2], A[3]]
+  } else {
+    return A;
+  }
+}
+
+function COMPARATOR9(a, b, c, d) {
+  let c0 = !(a || b);
+  let c1 = !c0 && (a || c);
+  let c2 = (!a && c0)
+
+  return !c2 && (c1 || d) && (c1 || !c2);
+}
+
+function ALU(A, B, c) {
+  let sum = BITS4_FULL_ADDER(A, B, c);
+  let cmp = COMPARATOR9(...sum.slice(0, 4));
+
+  return [SUBBER(sum.slice(1, 5), cmp), cmp];
+}
+
 let error = false;
 
 const letters = [
@@ -44,6 +157,10 @@ const symbols = {
   JMP: Symbol('.JMP'),
 };
 
+function displayAnError(error) {
+  console.error(error);
+}
+
 function binaryToHex(instruction) {
   let binaryArray = instruction.split('').reverse();
   let nibbleArray = [];
@@ -66,9 +183,8 @@ function binaryToHex(instruction) {
   for (let char of nibbleArray) {
     hexArray.push(
       letters[
-        logic.toNumber(
-          logic
-            .extender(char.split(''), 4)
+        toNumber(
+          extender(char.split(''), 4)
             .map((bit) => (bit && bit != '0' ? '1' : '0'))
         )
       ]
@@ -147,7 +263,7 @@ function codeGenerator(instructions) {
         }
       }
 
-      code += binaryToHex(input + output.join('')) + '<br>';
+      code += binaryToHex(input + output.join('')) + '\n';
     } else {
       let func = '';
       let param = '';
@@ -160,8 +276,7 @@ function codeGenerator(instructions) {
         case symbols.INPUT:
           func = '101';
           param =
-            logic
-              .extender(logic.hexToBinary(instruction[1]), 4)
+            extender(hexToBinary(instruction[1]), 4)
               .map((bin) => (bin ? '1' : '0'))
               .join('') + '000000';
           break;
@@ -169,21 +284,19 @@ function codeGenerator(instructions) {
           func = '110';
           param =
             '100' +
-            logic
-              .extender(logic.toBinary([instruction[1]]), 4)
+            extender(toBinary([instruction[1]]), 4)
               .map((bin) => (bin ? '1' : '0'))
               .join('') +
             '000';
           break;
         case symbols.JMP:
           func = '111';
-          param = logic
-            .extender(logic.toBinary(jumps['.' + instruction[1]]), 10)
+          param = extender(toBinary(jumps['.' + instruction[1]]), 10)
             .map((bin) => (bin ? '1' : '0'))
             .join('');
       }
 
-      code += binaryToHex(func + param) + '<br>';
+      code += binaryToHex(func + param) + '\n';
     }
   }
 
@@ -263,12 +376,21 @@ function tokenize(code) {
   return tokens;
 }
 
-export default function assembler(code) {
+function assembler(code) {
   let tokens = tokenize(code);
   let instructions = parse(tokens);
   let output = codeGenerator(instructions);
 
-  el.innerHTML = output;
-
   return output;
 }
+
+let code = `.INPUT 0x1; - Carrega 1 á entrada
+079;				- Poe 1 ao registrador AH e a memoria RAM A no endereço 0
+.0x1;				- Cria um endereço 0x1
+25;					- Copia o conteudo do registrador AH para AC
+36;					- Copia o conteudo da memória RAM A para BC
+17D;				- Adiciona 1 ao endereço da RAM A e copia a soma de Ac e BC no novo endereço
+.CMP 0x6;		- Compara se o numero de saltos é igual a 6
+.JMP 0x1;		- Se a ultima comparação for falsa, pular para 0x1.`
+
+console.log(assembler(code));

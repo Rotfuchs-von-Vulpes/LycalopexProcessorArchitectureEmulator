@@ -1,5 +1,5 @@
 const el = document.getElementById('error');
 
-export function displayAnError(error) {
+export default function displayAnError(error) {
   el.innerHTML = `<p style="color: red">${error}</p>`;
 }

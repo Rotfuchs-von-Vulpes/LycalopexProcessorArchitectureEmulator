@@ -15,7 +15,7 @@
 // E: BMS_M
 
 import logic from './logic.js';
-import { displayAnError } from './error.js';
+import displayAnError from './error.js';
 
 let registers = {};
 let RAM = {};
