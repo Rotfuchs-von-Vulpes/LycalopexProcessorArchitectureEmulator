@@ -4,15 +4,23 @@ import displayAnError from './error.js';
 import { tokenize, reset } from './interpreter.js';
 
 const elRun = document.getElementById('run');
+const elDebug = document.getElementById('debug');
 const elReset = document.getElementById('reset');
 const elClear = document.getElementById('clear');
 const elCompile = document.getElementById('compile');
 
+function run() {
+  const code = myCodeMirror.getValue();
+
+  displayAnError('');
+  tokenize(code, false);
+}
+
 function debug() {
   const code = myCodeMirror.getValue();
-  
+
   displayAnError('');
-  tokenize(code);
+  tokenize(code, true);
 }
 
 function clear() {
@@ -37,7 +45,8 @@ function compile() {
   compiler(code);
 }
 
-elRun.addEventListener('click', debug);
+elRun.addEventListener('click', run);
+elDebug.addEventListener('click', debug);
 elReset.addEventListener('click', reset);
 elClear.addEventListener('click', clear);
 elCompile.addEventListener('click', compile);

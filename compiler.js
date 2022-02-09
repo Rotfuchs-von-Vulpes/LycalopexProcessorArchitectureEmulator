@@ -3,6 +3,7 @@ import displayAnError from './error.js';
 
 const el = document.getElementById('machineCode');
 let error = false;
+let hex = true;
 
 const letters = [
   '0',
@@ -44,6 +45,30 @@ const symbols = {
   JMP: Symbol('.JMP'),
 };
 
+const compareOperators = {
+  EQ: Symbol('EQ'),
+  NEQ: Symbol('NEQ'),
+  LE: Symbol('LE'),
+  LEQ: Symbol('LEQ'),
+  GR: Symbol('GR'),
+  GRQ: Symbol('GRQ'),
+  invert(operator) {
+    switch (this[operator]) {
+      case this.EQ:
+      case this.NEQ:
+        return operator;
+      case this.LE:
+        return 'GR';
+      case this.LEQ:
+        return 'GRQ';
+      case this.GR:
+        return 'LE';
+      case this.GRQ:
+        return 'LEQ';
+    }
+  },
+};
+
 function binaryToHex(instruction) {
   let binaryArray = instruction.split('').reverse();
   let nibbleArray = [];
@@ -82,6 +107,16 @@ function codeGenerator(instructions) {
   let code = '';
   let jumps = {};
 
+  function writeCode(binary) {
+    let code = binary;
+
+    if (hex) {
+      code = binaryToHex(code);
+    }
+
+    return code;
+  }
+
   instructions.forEach(([instruction], i) => {
     if (/\.0x[0-9a-fA-F]/.test(instruction)) {
       jumps[instruction] = i;
@@ -93,14 +128,11 @@ function codeGenerator(instructions) {
     let instruction = instructions[i];
 
     if (instruction.length == 1) {
-      let input = '';
+      let input = '000';
       let output = new Array(10).fill('0');
 
       for (let key of instruction[0]) {
         switch (symbols[key.toUpperCase()]) {
-          case symbols[0]:
-            input = '000';
-            break;
           case symbols[1]:
             input = '001';
             break;
@@ -147,7 +179,7 @@ function codeGenerator(instructions) {
         }
       }
 
-      code += binaryToHex(input + output.join('')) + '<br>';
+      code += writeCode(input + output.join('')) + '<br>';
     } else {
       let func = '';
       let param = '';
@@ -155,6 +187,8 @@ function codeGenerator(instructions) {
       instruction[0] = instruction[0].split('');
       instruction[0].shift();
       instruction[0] = instruction[0].join('');
+
+      // console.log(instruction[0]);
 
       switch (symbols[instruction[0]]) {
         case symbols.INPUT:
@@ -166,14 +200,49 @@ function codeGenerator(instructions) {
               .join('') + '000000';
           break;
         case symbols.CMP:
+          let comp;
+          let mode;
+
           func = '110';
+
+          switch (compareOperators[instruction[1]]) {
+            case compareOperators.EQ:
+              comp = '101';
+              break;
+            case compareOperators.LE:
+              comp = '000';
+              break;
+            case compareOperators.LEQ:
+              comp = '010';
+              break;
+            case compareOperators.GR:
+              comp = '011';
+              break;
+            case compareOperators.GRQ:
+              comp = '001';
+              break;
+            case compareOperators.NEQ:
+            default:
+              comp = '100';
+          }
+
+          if (instruction[2] === 'MX' && instruction[3] === 'BS') {
+            mode = '100';
+          } else if (instruction[2] === 'BS' && instruction[3] != 'BS') {
+            mode = '010';
+          } else if (instruction[2] === 'MX') {
+            mode = '000';
+          } else {
+            mode = '110';
+          }
+
           param =
-            '100' +
+            comp +
             logic
-              .extender(logic.toBinary([instruction[1]]), 4)
+              .extender(logic.toBinary([instruction[3]]), 4)
               .map((bin) => (bin ? '1' : '0'))
               .join('') +
-            '000';
+            mode;
           break;
         case symbols.JMP:
           func = '111';
@@ -183,7 +252,7 @@ function codeGenerator(instructions) {
             .join('');
       }
 
-      code += binaryToHex(func + param) + '<br>';
+      code += writeCode(func + param) + '<br>';
     }
   }
 
@@ -205,19 +274,59 @@ function parse(tokens) {
       let bump = false;
 
       for (let key of token) {
-        if (/[0-4]/.test(key))
-          input ? throwAnError('Ambiguidade de sinal') : (input = true);
-        if (/[D-Ed-e]/.test(key))
-          bump
-            ? throwAnError('Ambiguidade de endereçamento de memória')
-            : (bump = true);
+        if (/[0-4]/.test(key)) {
+          if (input) {
+            throwAnError('Ambiguidade de sinal');
+          } else {
+            input = true;
+          }
+        }
+        if (/[D-Ed-e]/.test(key)) {
+          if (bump) {
+            throwAnError('Ambiguidade de endereçamento de memória');
+          } else {
+            bump = true;
+          }
+        }
       }
 
       instructions.push([token]);
       instruction = [];
-    } else if (/(\.INPUT|\.CMP|\.JMP)/.test(token) && !instruction.length) {
+    } else if (
+      (/(\.INPUT|\.CMP|\.JMP)/.test(token) &&
+        ((/(\.INPUT|\.CMP|\.JMP)/.test(token) && !instruction.length) ||
+          (instruction[0] === '.CMP' &&
+            /(EQ|NEQ|LE|LEQ|GR|GRQ|MX|BS)|(0x[0-9a-fA-F])\b/.test(token)))) ||
+      (instruction[0] === '.CMP' &&
+        /(EQ|NEQ|LE|LEQ|GR|GRQ|MX|BS)|(0x[0-9a-fA-F])\b/.test(token))
+    ) {
       instruction.push(token);
+
+      if (instruction[0] === '.CMP' && instruction.length === 4) {
+        if (instruction[2] != 'MX' && instruction[2].indexOf('0x') != 0) {
+          let temp = instruction[2];
+
+          instruction[2] = instruction[3];
+          instruction[3] = temp;
+
+          instruction[1] = compareOperators.invert(instruction[1]);
+        }
+
+        if (
+          instruction[2].indexOf('0x') === 0 && instruction[3].indexOf('0x') === 0 ||
+          instruction[2] === 'MX' && instruction[3] === 'MX'
+        ) {
+          throwAnError('Comparação não permitida');
+        }
+
+        instructions.push(instruction);
+        instruction = [];
+      }
     } else if (token.indexOf('0x') >= 0 && /\.?0x[0-9a-fA-F]\b/.test(token)) {
+      instruction.push(token);
+      instructions.push(instruction);
+      instruction = [];
+    } else if (instruction[0] === '.JMP' && instruction.length === 1) {
       instruction.push(token);
       instructions.push(instruction);
       instruction = [];
@@ -265,8 +374,11 @@ function tokenize(code) {
 
 export default function assembler(code) {
   let tokens = tokenize(code);
+  console.log(tokens);
   let instructions = parse(tokens);
+  console.log(instructions);
   let output = codeGenerator(instructions);
+  console.log(output);
 
   el.innerHTML = output;
 
