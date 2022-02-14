@@ -374,11 +374,8 @@ function tokenize(code) {
 
 export default function assembler(code) {
   let tokens = tokenize(code);
-  console.log(tokens);
   let instructions = parse(tokens);
-  console.log(instructions);
   let output = codeGenerator(instructions);
-  console.log(output);
 
   el.innerHTML = output;
 

@@ -73,6 +73,8 @@ const compareOperators = {
   }
 };
 
+let stop = false;
+
 const newKey = (value, register) => ({ value, register });
 
 function show() {
@@ -230,7 +232,16 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function tokenize(code, debug) {
+function toStop() {
+  clear();
+  stop = true;
+}
+
+function unStop() {
+  stop = false;
+}
+
+async function tokenize(code, delay) {
   let instruction = [];
   let literal = false;
   let comment = false;
@@ -407,8 +418,9 @@ async function tokenize(code, debug) {
               if (registers.EC[0]) {
                 if (loopList[token]) {
                   if (logic.toNumber(registers.DC) >= 15) {
-                    displayAnError('Loop em excesso')
-                    return true;
+                    // displayAnError('Loop em excesso')
+                    // return true;
+                    registers.DC = new Array(4).fill(false);
                   } else {
                     registers.DC = logic.iterate(registers.DC);
                   }
@@ -437,6 +449,8 @@ async function tokenize(code, debug) {
       }
     }
   }
+
+  if (delay == undefined) delay = 500;
 
   myCodeMirror.options.readOnly = true;
 
@@ -496,10 +510,10 @@ async function tokenize(code, debug) {
     }
 
     if (key == '\n') {
-      if (debug && !conditional) {
+      if (!conditional) {
         detach(line);
         show();
-        await sleep(700);
+        await sleep(delay);
       }
 
       line++;
@@ -511,6 +525,8 @@ async function tokenize(code, debug) {
     }
 
     head++;
+
+    if (stop) break;
   }
 
   if (conditional) error(`Endereço ${target} não foi encontrado.`);
@@ -529,4 +545,4 @@ myCodeMirror.on('change', getNodes);
 reset();
 show();
 
-export { tokenize, reset };
+export { tokenize, reset, toStop, unStop };
